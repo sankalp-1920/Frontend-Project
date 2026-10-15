@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RentPay - Modern Rental & Utility Payment Hub</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            },
+            accent: {
+              500: '#10b981',
+              600: '#059669',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printable-receipt-area, #printable-receipt-area * {
+        visibility: visible;
+      }
+      #printable-receipt-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+    
+    /* Smooth transitions */
+    .view-section {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.25s ease-in-out;
+    }
+    .view-section.active {
+      display: block;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-brand-500 selection:text-white min-h-screen flex flex-col justify-between">
+
+  <!-- Floating Toast Notification -->
+  <div id="toast-notification" class="fixed top-5 right-5 z-50 transform translate-y-[-120%] opacity-0 transition-all duration-300 max-w-sm flex items-center p-4 rounded-xl shadow-2xl bg-white border border-slate-200">
+    <div id="toast-icon-wrapper" class="w-10 h-10 rounded-full flex items-center justify-center mr-3 bg-emerald-100 text-emerald-600">
+      <i id="toast-icon" class="fas fa-check"></i>
+    </div>
+    <div class="flex-1">
+      <h4 id="toast-title" class="text-sm font-bold text-slate-900">Success</h4>
+      <p id="toast-desc" class="text-xs text-slate-600 mt-0.5">Item added to your cart!</p>
+    </div>
+    <button onclick="dismissToast()" class="ml-3 text-slate-400 hover:text-slate-600">
+      <i class="fas fa-times text-xs"></i>
+    </button>
+  </div>
+
+  <!-- Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200/80 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 sm:h-20">
+        <!-- Brand Logo -->
+        <div class="flex items-center gap-3 cursor-pointer" onclick="navigateTo('home')">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/25">
+            <i class="fas fa-home-alt text-lg"></i>
+          </div>
+          <div>
+            <span class="text-2xl font-black font-display tracking-tight text-slate-900">Rent<span class="text-brand-600">Pay</span></span>
+            <span class="hidden sm:inline-block ml-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">Zero UPI Fee</span>
+          </div>
+        </div>
+
+        <!-- Desktop Navigation Items -->
+        <nav class="hidden md:flex items-center gap-1 font-medium text-sm text-slate-600">
+          <button onclick="navigateTo('home')" class="nav-link px-3.5 py-2 rounded-lg hover:text-brand-600 transition" data-view="home">Home</button>
+          <button onclick="navigateTo('services')" class="nav-link px-3.5 py-2 rounded-lg hover:text-brand-600 transition" data-view="services">Services</button>
+          <button onclick="navigateTo('bills')" class="nav-link px-3.5 py-2 rounded-lg hover:text-brand-600 transition" data-view="bills">My Bills</button>
+          <button onclick="navigateTo('contact')" class="nav-link px-3.5 py-2 rounded-lg hover:text-brand-600 transition" data-view="contact">Contact & Help</button>
+        </nav>
+
+        <!-- Right Side Nav Actions -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Cart Button -->
+          <button onclick="navigateTo('cart')" class="relative p-2.5 sm:px-3.5 sm:py-2 rounded-xl text-slate-700 hover:bg-slate-100 transition border border-transparent hover:border-slate-200 flex items-center gap-2">
+            <i class="fas fa-shopping-bag text-base text-slate-600"></i>
+            <span class="hidden sm:inline text-xs font-semibold">Cart</span>
+            <span id="nav-cart-badge" class="absolute -top-1 -right-1 bg-brand-600 text-white font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white shadow-xs">0</span>
+          </button>
+
+          <!-- Auth Status & Profile Button -->
+          <div id="nav-auth-container">
+            <!-- Populated dynamically via JS -->
+            <button onclick="navigateTo('login')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-sm shadow-brand-600/30 transition flex items-center gap-2">
+              <i class="fas fa-sign-in-alt"></i>
+              <span>Sign In</span>
+            </button>
+          </div>
+
+          <!-- Mobile Menu Button -->
+          <button onclick="toggleMobileNav()" class="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none">
+            <i class="fas fa-bars text-lg"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Nav Flyout -->
+    <div id="mobile-menu" class="hidden md:hidden border-t border-slate-200 bg-white px-4 pt-2 pb-4 space-y-1">
+      <button onclick="navigateTo('home'); toggleMobileNav();" class="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-50">Home</button>
+      <button onclick="navigateTo('services'); toggleMobileNav();" class="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-50">Services</button>
+      <button onclick="navigateTo('bills'); toggleMobileNav();" class="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-50">My Bills</button>
+      <button onclick="navigateTo('cart'); toggleMobileNav();" class="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-50">Checkout Cart</button>
+      <button onclick="navigateTo('contact'); toggleMobileNav();" class="block w-full text-left px-3 py-2 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-50">Contact & Support</button>
+    </div>
+  </header>
+
+  <!-- QUICK DEMO SWITCHER BAR (To easily jump straight to all required pages) -->
+  <div class="bg-indigo-900 text-white text-xs py-2 px-4 shadow-inner no-print">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2 font-semibold">
+        <i class="fas fa-compass text-amber-400"></i>
+        <span>Quick View Nav:</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 font-medium">
+        <button onclick="navigateTo('home')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">1. Home</button>
+        <button onclick="navigateTo('services')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">2. Services</button>
+        <button onclick="navigateTo('cart')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">3. Cart</button>
+        <button onclick="navigateTo('payment')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">4. Payment</button>
+        <button onclick="navigateTo('bills')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">5. Bills</button>
+        <button onclick="navigateTo('receipt')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">6. Receipt</button>
+        <button onclick="navigateTo('login')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">7. Login/Signup</button>
+        <button onclick="navigateTo('contact')" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-md transition">8. Contact</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="flex-grow">
+
+    <!-- VIEW 1: HOME PAGE -->
+    <section id="view-home" class="view-section active">
+      <!-- Hero Section -->
+      <div class="relative overflow-hidden bg-gradient-to-b from-indigo-50/70 via-white to-slate-50 py-12 lg:py-20 border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="grid lg:grid-cols-12 gap-12 items-center">
+            
+            <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100/70 text-brand-700 text-xs font-semibold">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Earn 1.5% cashback & credit card airmiles on rent</span>
+              </div>
+              <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black font-display tracking-tight text-slate-900 leading-tight">
+                Pay Rent & Utilities with <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-indigo-500">Supercharged Rewards</span>
+              </h1>
+              <p class="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0">
+                Instant digital receipts for HRA tax exemption, direct bank landlord transfer, credit card rewards optimization, and zero processing fee via UPI.
+              </p>
+              
+              <!-- Quick Action Card in Hero -->
+              <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 max-w-xl mx-auto lg:mx-0">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4 text-xs font-semibold text-slate-600">
+                  <button onclick="setQuickService('House Rent')" class="py-2 px-3 rounded-lg bg-brand-50 text-brand-700 border border-brand-200 flex flex-col items-center gap-1 hover:bg-brand-100 transition">
+                    <i class="fas fa-building text-sm"></i> Flat Rent
+                  </button>
+                  <button onclick="setQuickService('Society Maintenance')" class="py-2 px-3 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 flex flex-col items-center gap-1 transition">
+                    <i class="fas fa-city text-sm"></i> Society
+                  </button>
+                  <button onclick="setQuickService('Commercial Lease')" class="py-2 px-3 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 flex flex-col items-center gap-1 transition">
+                    <i class="fas fa-briefcase text-sm"></i> Office
+                  </button>
+                  <button onclick="setQuickService('Electricity Bill')" class="py-2 px-3 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 flex flex-col items-center gap-1 transition">
+                    <i class="fas fa-bolt text-sm"></i> Utility
+                  </button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2.5">
+                  <div class="relative flex-1">
+                    <span class="absolute left-3.5 top-3 text-slate-400 font-medium">₹</span>
+                    <input id="hero-quick-amount" type="number" placeholder="Rent Amount (e.g. 24000)" class="w-full pl-8 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                  </div>
+                  <button onclick="quickPayFromHero()" class="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-md shadow-brand-600/30">
+                    <span>Pay Rent Now</span>
+                    <i class="fas fa-arrow-right text-xs"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Trust Stats Row -->
+              <div class="pt-2 flex flex-wrap justify-center lg:justify-start items-center gap-6 text-slate-500 text-xs font-semibold">
+                <div class="flex items-center gap-1.5">
+                  <i class="fas fa-shield-halved text-emerald-600 text-sm"></i> 256-bit Bank Grade Security
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <i class="fas fa-file-invoice text-brand-600 text-sm"></i> Instant HRA Receipts
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <i class="fas fa-bolt text-amber-500 text-sm"></i> Under 15 Min Transfer
+                </div>
+              </div>
+            </div>
+
+            <!-- Hero Graphic / Live Card Dashboard Preview -->
+            <div class="lg:col-span-5">
+              <div class="bg-gradient-to-tr from-slate-900 to-indigo-950 p-6 sm:p-7 rounded-3xl text-white shadow-2xl relative overflow-hidden border border-slate-800">
+                <div class="absolute -right-12 -bottom-12 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl"></div>
+                <div class="flex justify-between items-start mb-6">
+                  <div>
+                    <span class="text-xs uppercase font-bold tracking-wider text-indigo-300">Tenant Dashboard Snapshot</span>
+                    <h3 class="text-xl font-bold mt-1" id="dash-user-name">Welcome back, Alex!</h3>
+                  </div>
+                  <span class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> KYC Verified
+                  </span>
+                </div>
+
+                <!-- Stats widgets -->
+                <div class="grid grid-cols-2 gap-3 mb-5">
+                  <div class="bg-white/10 backdrop-blur p-3.5 rounded-2xl border border-white/10">
+                    <p class="text-xs text-indigo-200">Active Lease</p>
+                    <p class="text-lg font-bold text-white mt-0.5">Skyline Apt #402</p>
+                    <span class="text-[11px] text-slate-300">Due in 5 Days</span>
+                  </div>
+                  <div class="bg-white/10 backdrop-blur p-3.5 rounded-2xl border border-white/10">
+                    <p class="text-xs text-indigo-200">Rent Coins</p>
+                    <p class="text-lg font-bold text-amber-300 mt-0.5">3,450 Pts</p>
+                    <span class="text-[11px] text-slate-300">Worth ₹860 Cashback</span>
+                  </div>
+                </div>
+
+                <!-- Pending Rent Alert -->
+                <div class="bg-white/5 border border-white/10 p-3.5 rounded-2xl flex items-center justify-between">
+                  <div>
+                    <p class="text-xs text-slate-300">Next Installment</p>
+                    <p class="text-base font-bold text-white">₹22,500 <span class="text-xs font-normal text-slate-400">/ October</span></p>
+                  </div>
+                  <button onclick="navigateTo('bills')" class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold text-xs rounded-xl transition">
+                    View Ledger
+                  </button>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-white/10 flex items-center justify-between text-xs text-indigo-200">
+                  <span>Registered Landlord: R. K. Sharma</span>
+                  <span class="text-emerald-400 font-medium"><i class="fas fa-check-circle"></i> Direct NEFT Verified</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Offerings Section -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-display">Why Million+ Tenants Rely on RentPay</h2>
+          <p class="mt-3 text-slate-600 text-sm sm:text-base">Experience frictionless payments with verified compliance and maximized financial perks.</p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-lg transition">
+            <div class="w-12 h-12 rounded-xl bg-indigo-100 text-brand-600 flex items-center justify-center text-xl mb-4">
+              <i class="fas fa-receipt"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Automated HRA Tax Invoices</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">Instantly generate valid digitally signed rent receipts containing Landlord PAN, property address, and UTR number for corporate tax exemptions.</p>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-lg transition">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl mb-4">
+              <i class="fas fa-credit-card"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Earn Miles & Card Points</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">Pay via your Visa, Mastercard, or RuPay credit card to complete your milestone spends while getting up to 45 days of interest-free credit.</p>
+          </div>
+
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-lg transition">
+            <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl mb-4">
+              <i class="fas fa-hand-holding-dollar"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Security Deposit Escrow</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">Safely manage new rental lease security deposits with digitally tracked landlord acknowledgments and instant escrow releases.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Services Bar Call-to-action -->
+      <div class="bg-slate-100/80 border-y border-slate-200 py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h3 class="text-xl font-bold text-slate-900 mb-3">Explore All Pay Categories</h3>
+          <p class="text-sm text-slate-600 mb-6 max-w-lg mx-auto">From house rent to shared PG fees and apartment maintenance, manage everything in one single dashboard.</p>
+          <div class="flex flex-wrap justify-center gap-3">
+            <button onclick="navigateTo('services')" class="px-5 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 shadow-sm transition">Browse Full Catalog</button>
+            <button onclick="navigateTo('bills')" class="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition">Check Pending Bills</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: SERVICES CATALOG PAGE -->
+    <section id="view-services" class="view-section">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <span class="text-xs font-bold text-brand-600 uppercase tracking-wider">Service Suite</span>
+            <h1 class="text-3xl font-black font-display text-slate-900">Rental & Property Services</h1>
+            <p class="text-slate-600 text-sm mt-1">Select any rental category to pay directly or bundle into your cart.</p>
+          </div>
+          <!-- Category Filters -->
+          <div class="flex flex-wrap gap-2 text-xs font-medium" id="service-category-pills">
+            <button onclick="filterServices('all')" class="cat-pill px-3.5 py-1.5 rounded-full bg-brand-600 text-white">All Services</button>
+            <button onclick="filterServices('residential')" class="cat-pill px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Residential</button>
+            <button onclick="filterServices('commercial')" class="cat-pill px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Commercial</button>
+            <button onclick="filterServices('maintenance')" class="cat-pill px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Society & Utilities</button>
+          </div>
+        </div>
+
+        <!-- Services Grid -->
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6" id="services-grid-container">
+          <!-- Dynamically inserted or static initialized -->
+        </div>
+
+        <!-- Payment Mode Benefits Banner -->
+        <div class="mt-12 bg-gradient-to-r from-brand-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white">
+          <div class="grid md:grid-cols-3 gap-6 text-center md:text-left">
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xl shrink-0 text-emerald-400">
+                <i class="fas fa-qrcode"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-base">UPI / Net Banking</h4>
+                <p class="text-xs text-indigo-200 mt-1">0% transaction convenience fee on direct instant UPI transfers to any landlord VPA.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xl shrink-0 text-amber-400">
+                <i class="fas fa-credit-card"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-base">Credit Cards Accepted</h4>
+                <p class="text-xs text-indigo-200 mt-1">Pay with Visa, Mastercard, Diners or Amex and earn up to 4x reward points and air miles.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xl shrink-0 text-blue-400">
+                <i class="fas fa-stamp"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-base">Instant HRA Tax Receipt</h4>
+                <p class="text-xs text-indigo-200 mt-1">Automatic digital stamp, landlord PAN inclusion, and instant download for Section 10(13A).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: ADD TO CART / CART CHECKOUT PAGE -->
+    <section id="view-cart" class="view-section">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="mb-8">
+          <span class="text-xs font-bold text-brand-600 uppercase tracking-wider">Payment Basket</span>
+          <h1 class="text-3xl font-black font-display text-slate-900">Your Checkout Cart</h1>
+          <p class="text-slate-600 text-sm mt-1">Review the rental services and monthly dues you wish to clear in this transaction.</p>
+        </div>
+
+        <div class="grid lg:grid-cols-12 gap-8">
+          <!-- Cart Items Column -->
+          <div class="lg:col-span-8 space-y-4">
+            <div id="cart-items-container" class="space-y-3">
+              <!-- Dynamically populated or empty cart placeholder -->
+            </div>
+
+            <!-- Quick Add More Reminder -->
+            <div class="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-xs">
+                  <i class="fas fa-plus"></i>
+                </div>
+                <div>
+                  <h5 class="text-sm font-bold text-slate-900">Need to add another lease or bill?</h5>
+                  <p class="text-xs text-slate-500">You can pay multiple bills simultaneously in one checkout.</p>
+                </div>
+              </div>
+              <button onclick="navigateTo('services')" class="px-3.5 py-1.5 bg-white border border-brand-200 text-brand-700 hover:bg-brand-50 rounded-xl text-xs font-semibold transition">
+                Browse Services
+              </button>
+            </div>
+          </div>
+
+          <!-- Checkout Summary Column -->
+          <div class="lg:col-span-4">
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm sticky top-24 space-y-6">
+              <h3 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">Bill Breakdown</h3>
+
+              <!-- Promo Coupon -->
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Apply Promo Code</label>
+                <div class="flex gap-2">
+                  <input id="cart-promo-input" type="text" placeholder="e.g. ZEROFEES or WELCOME" class="uppercase flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                  <button onclick="applyPromoCode()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition">Apply</button>
+                </div>
+                <p id="promo-status" class="text-[11px] mt-1 text-slate-500">Available: Use code <strong class="text-brand-600">ZEROFEES</strong> for free platform handling.</p>
+              </div>
+
+              <!-- Price calculations -->
+              <div class="space-y-2.5 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                <div class="flex justify-between">
+                  <span>Base Rent / Subtotal</span>
+                  <span id="cart-subtotal" class="font-bold text-slate-900">₹0</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>Convenience Fee (0.5%)</span>
+                  <span id="cart-conv-fee" class="font-semibold text-slate-700">₹0</span>
+                </div>
+                <div class="flex justify-between">
+                  <span>GST (18% on fee)</span>
+                  <span id="cart-gst" class="font-semibold text-slate-700">₹0</span>
+                </div>
+                <div id="cart-discount-row" class="flex justify-between text-emerald-600 hidden">
+                  <span>Coupon Discount</span>
+                  <span id="cart-discount">- ₹0</span>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-slate-200 flex justify-between items-baseline">
+                <span class="text-sm font-extrabold text-slate-900">Total Payable</span>
+                <span id="cart-total-payable" class="text-2xl font-black font-display text-brand-600">₹0</span>
+              </div>
+
+              <button onclick="proceedToPayment()" class="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-sm shadow-md shadow-brand-600/30 transition flex items-center justify-center gap-2">
+                <span>Proceed to Payment</span>
+                <i class="fas fa-lock text-xs"></i>
+              </button>
+
+              <div class="text-center text-[11px] text-slate-400">
+                <i class="fas fa-shield-alt text-emerald-500 mr-1"></i> Bank-grade encrypted 256-bit checkout
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: PAYMENT PAGE -->
+    <section id="view-payment" class="view-section">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="mb-8">
+          <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2">
+            <button onclick="navigateTo('cart')" class="hover:text-brand-600"><i class="fas fa-arrow-left mr-1"></i> Return to Cart</button>
+            <span>/</span>
+            <span class="text-brand-600">Secure Checkout</span>
+          </div>
+          <h1 class="text-3xl font-black font-display text-slate-900">Choose Payment Method</h1>
+          <p class="text-slate-600 text-sm mt-1">Select your preferred payment gateway channel to transfer rent securely.</p>
+        </div>
+
+        <div class="grid md:grid-cols-12 gap-8 items-start">
+          
+          <!-- Payment Options Switcher Tabs -->
+          <div class="md:col-span-8 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <!-- Tabs Bar -->
+            <div class="flex border-b border-slate-200 bg-slate-50/70 p-2 gap-2 text-xs font-bold text-slate-600">
+              <button onclick="switchPayTab('upi')" id="tab-btn-upi" class="pay-tab-btn flex-1 py-2.5 rounded-xl bg-white text-brand-600 shadow-xs border border-slate-200 flex items-center justify-center gap-2 transition">
+                <i class="fas fa-qrcode"></i> UPI / QR
+              </button>
+              <button onclick="switchPayTab('card')" id="tab-btn-card" class="pay-tab-btn flex-1 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2 transition">
+                <i class="fas fa-credit-card"></i> Cards
+              </button>
+              <button onclick="switchPayTab('netbanking')" id="tab-btn-netbanking" class="pay-tab-btn flex-1 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2 transition">
+                <i class="fas fa-university"></i> Net Banking
+              </button>
+            </div>
+
+            <div class="p-6">
+              <!-- Sub-tab 1: UPI -->
+              <div id="pay-content-upi" class="pay-content-pane space-y-6">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Enter Virtual Payment Address (UPI ID)</label>
+                  <div class="flex gap-2">
+                    <input id="upi-id-input" type="text" placeholder="example@okhdfcbank or yourname@upi" class="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" value="tenant.demo@okhdfc" />
+                    <button onclick="verifyUpi()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-200 transition">Verify</button>
+                  </div>
+                  <p class="text-[11px] text-emerald-600 mt-1.5 flex items-center gap-1"><i class="fas fa-check-circle"></i> Instant 0% Convenience Fee applies</p>
+                </div>
+
+                <div class="border-t border-slate-100 pt-5">
+                  <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-3">Or scan dynamic UPI QR</span>
+                  <div class="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div class="w-32 h-32 bg-white p-2 rounded-xl border border-slate-200 flex items-center justify-center shadow-xs">
+                      <!-- Mock QR Image -->
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=rentpay@axis&pn=RentPayEscrow" alt="UPI QR" class="w-28 h-28" />
+                    </div>
+                    <div class="space-y-1 text-center sm:text-left">
+                      <p class="text-xs font-bold text-slate-800">Scan with GPay, PhonePe, or Paytm</p>
+                      <p class="text-[11px] text-slate-500">Scan the QR code to authorize directly from your mobile bank app.</p>
+                      <div class="flex gap-3 justify-center sm:justify-start pt-2">
+                        <span class="px-2 py-0.5 bg-white text-[10px] font-bold text-slate-600 border border-slate-200 rounded">GPay</span>
+                        <span class="px-2 py-0.5 bg-white text-[10px] font-bold text-slate-600 border border-slate-200 rounded">PhonePe</span>
+                        <span class="px-2 py-0.5 bg-white text-[10px] font-bold text-slate-600 border border-slate-200 rounded">Paytm</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sub-tab 2: Cards -->
+              <div id="pay-content-card" class="pay-content-pane hidden space-y-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Card Number</label>
+                  <div class="relative">
+                    <input id="card-num-input" type="text" maxlength="19" placeholder="4532 •••• •••• 8842" value="4532 8920 1142 8842" class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                    <i class="far fa-credit-card absolute left-3.5 top-3 text-slate-400"></i>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Cardholder Name</label>
+                  <input id="card-name-input" type="text" placeholder="Name on card" value="Alex Morgan" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Expiry Date</label>
+                    <input id="card-exp-input" type="text" maxlength="5" placeholder="MM/YY" value="08/28" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">CVV / CVC</label>
+                    <input id="card-cvv-input" type="password" maxlength="4" placeholder="•••" value="821" class="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 pt-2">
+                  <input type="checkbox" id="save-card-cb" checked class="rounded text-brand-600 focus:ring-brand-500" />
+                  <label for="save-card-cb" class="text-xs text-slate-600">Save card securely as per RBI tokenization guidelines</label>
+                </div>
+              </div>
+
+              <!-- Sub-tab 3: Net Banking -->
+              <div id="pay-content-netbanking" class="pay-content-pane hidden space-y-4">
+                <p class="text-xs text-slate-600">Choose your banking institution for direct authorized debits:</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <button type="button" onclick="selectBank(this)" class="bank-pill p-3 border border-brand-500 bg-brand-50 text-brand-700 rounded-xl text-xs font-bold text-center">HDFC Bank</button>
+                  <button type="button" onclick="selectBank(this)" class="bank-pill p-3 border border-slate-200 hover:border-brand-300 rounded-xl text-xs font-bold text-center text-slate-700">ICICI Bank</button>
+                  <button type="button" onclick="selectBank(this)" class="bank-pill p-3 border border-slate-200 hover:border-brand-300 rounded-xl text-xs font-bold text-center text-slate-700">State Bank of India</button>
+                  <button type="button" onclick="selectBank(this)" class="bank-pill p-3 border border-slate-200 hover:border-brand-300 rounded-xl text-xs font-bold text-center text-slate-700">Axis Bank</button>
+                  <button type="button" onclick="selectBank(this)" class="bank-pill p-3 border border-slate-200 hover:border-brand-300 rounded-xl text-xs font-bold text-center text-slate-700">Kotak Mahindra</button>
+                  <button type="button" onclick="selectBank(this)" class="bank-pill p-3 border border-slate-200 hover:border-brand-300 rounded-xl text-xs font-bold text-center text-slate-700">Other Banks</button>
+                </div>
+              </div>
+
+              <!-- Pay Securely Action Button -->
+              <div class="pt-6 border-t border-slate-100 mt-6">
+                <button id="btn-execute-pay" onclick="simulatePaymentProcess()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-base shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-3">
+                  <i class="fas fa-shield-check text-lg"></i>
+                  <span>Pay Securely <span id="pay-button-amount">₹0</span></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Side Panel Order Snapshot -->
+          <div class="md:col-span-4 bg-slate-900 text-white rounded-3xl p-6 shadow-xl space-y-5">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-indigo-300">Transaction Snapshot</h3>
+            
+            <div class="space-y-3 text-xs">
+              <div class="flex justify-between text-slate-300">
+                <span>Beneficiary:</span>
+                <span class="font-semibold text-white">R. K. Sharma (Landlord)</span>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Property:</span>
+                <span class="font-semibold text-white">Flat 402, Skyline Towers</span>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>UTR / Reference ID:</span>
+                <span class="font-mono text-emerald-400">RPAY-2026-X992</span>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-800 space-y-2 text-xs">
+              <div class="flex justify-between text-slate-400">
+                <span>Items Selected:</span>
+                <span id="pay-summary-count">1 Item</span>
+              </div>
+              <div class="flex justify-between text-slate-400">
+                <span>Convenience:</span>
+                <span class="text-emerald-400">FREE via Promo</span>
+              </div>
+              <div class="flex justify-between text-slate-400">
+                <span>Tax Receipt Generation:</span>
+                <span class="text-white">Included</span>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-800 flex justify-between items-baseline">
+              <span class="text-xs uppercase font-bold text-slate-300">Total Charged</span>
+              <span id="pay-summary-total" class="text-2xl font-black font-display text-emerald-400">₹0</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: BILL PAGE (LEDGER & PENDING BILLS) -->
+    <section id="view-bills" class="view-section">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+          <div>
+            <span class="text-xs font-bold text-brand-600 uppercase tracking-wider">Tenant Statement</span>
+            <h1 class="text-3xl font-black font-display text-slate-900">Rental Bills & Invoices</h1>
+            <p class="text-slate-600 text-sm mt-1">Manage current lease commitments, upcoming dues, and historical clearances.</p>
+          </div>
+          <button onclick="navigateTo('services')" class="px-4 py-2.5 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition flex items-center gap-2 self-start">
+            <i class="fas fa-plus"></i> Add New Bill
+          </button>
+        </div>
+
+        <!-- Ledger Table Card -->
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 sm:p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-bold text-slate-700">Filter By:</span>
+              <button onclick="filterBills('all')" class="bill-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700">All</button>
+              <button onclick="filterBills('pending')" class="bill-filter-btn px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">Pending</button>
+              <button onclick="filterBills('paid')" class="bill-filter-btn px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">Paid</button>
+            </div>
+            <div class="text-xs text-slate-500 font-medium">
+              Showing <span id="bill-total-count" class="font-bold text-slate-800">4</span> scheduled invoices
+            </div>
+          </div>
+
+          <!-- Table wrapper -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/80 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                  <th class="py-3.5 px-6">Invoice #</th>
+                  <th class="py-3.5 px-6">Service / Property</th>
+                  <th class="py-3.5 px-6">Landlord / Provider</th>
+                  <th class="py-3.5 px-6">Due Date</th>
+                  <th class="py-3.5 px-6">Amount</th>
+                  <th class="py-3.5 px-6">Status</th>
+                  <th class="py-3.5 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bills-table-body" class="divide-y divide-slate-100 text-sm">
+                <!-- Dynamically populated bills -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 6: BILL RECEIPT / INVOICE PAGE -->
+    <section id="view-receipt" class="view-section">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        
+        <!-- Action Bar (Hidden when printing) -->
+        <div class="no-print flex items-center justify-between mb-6">
+          <button onclick="navigateTo('bills')" class="text-xs font-semibold text-slate-600 hover:text-brand-600 flex items-center gap-1.5">
+            <i class="fas fa-arrow-left"></i> Back to Bills Ledger
+          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="window.print()" class="px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 shadow-sm transition flex items-center gap-2">
+              <i class="fas fa-print"></i> Print / Download PDF
+            </button>
+            <button onclick="navigateTo('home')" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+              Home
+            </button>
+          </div>
+        </div>
+
+        <!-- Official Printable Tax Receipt Card -->
+        <div id="printable-receipt-area" class="bg-white rounded-3xl border border-slate-200 shadow-lg p-6 sm:p-10 relative overflow-hidden">
+          
+          <!-- Watermark Stamp -->
+          <div class="absolute right-8 top-28 opacity-10 pointer-events-none select-none text-slate-800 rotate-[-18deg] text-center border-4 border-slate-800 rounded-2xl p-4 font-black text-4xl">
+            RENT PAID<br>VERIFIED
+          </div>
+
+          <!-- Receipt Header -->
+          <div class="flex flex-col sm:flex-row justify-between items-start pb-6 border-b border-slate-200 gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-brand-600 flex items-center justify-center text-white text-xl">
+                <i class="fas fa-home-alt"></i>
+              </div>
+              <div>
+                <h2 class="text-xl font-black font-display text-slate-900 tracking-tight">Rent<span class="text-brand-600">Pay</span></h2>
+                <p class="text-[11px] text-slate-500 font-medium">Digital Rental Payment & HRA Slip</p>
+              </div>
+            </div>
+            <div class="sm:text-right">
+              <span class="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-extrabold uppercase">
+                Payment Completed
+              </span>
+              <p class="text-xs font-mono text-slate-500 mt-2">Receipt No: <strong id="receipt-no" class="text-slate-900">RP-2026-90412</strong></p>
+              <p class="text-xs text-slate-500">Date: <span id="receipt-date">October 09, 2026</span></p>
+            </div>
+          </div>
+
+          <!-- Section 10(13A) Note -->
+          <div class="my-4 p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-amber-800 text-[11px] font-medium leading-relaxed">
+            <i class="fas fa-info-circle mr-1"></i> <strong>Official Tax Document:</strong> This computerized rent receipt is valid proof for claiming House Rent Allowance (HRA) exemption under Section 10(13A) of the Income Tax Act.
+          </div>
+
+          <!-- Parties Grid -->
+          <div class="grid sm:grid-cols-2 gap-6 my-6 text-xs">
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Tenant Information (Payer)</span>
+              <p class="font-bold text-slate-900 text-sm" id="receipt-tenant-name">Alex Morgan</p>
+              <p class="text-slate-600 mt-0.5" id="receipt-tenant-email">alex.morgan@workmail.com</p>
+              <p class="text-slate-600 mt-0.5">Phone: +91 98765 43210</p>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Landlord / Owner (Beneficiary)</span>
+              <p class="font-bold text-slate-900 text-sm" id="receipt-landlord-name">R. K. Sharma</p>
+              <p class="text-slate-600 mt-0.5">Landlord PAN: <strong class="font-mono text-slate-800" id="receipt-landlord-pan">ABCPS1920K</strong></p>
+              <p class="text-slate-600 mt-0.5">Bank / VPA: HDFC Bank (Verified Transfer)</p>
+            </div>
+          </div>
+
+          <!-- Property & Period Details -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs mb-6 space-y-2">
+            <div class="flex justify-between">
+              <span class="text-slate-500 font-medium">Rented Property Address:</span>
+              <span class="font-semibold text-slate-800 text-right" id="receipt-address">Flat 402, Skyline Towers, Sector 45, Pune - 411057</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500 font-medium">Rental Period:</span>
+              <span class="font-semibold text-slate-800" id="receipt-period">01 Oct 2026 to 31 Oct 2026</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500 font-medium">Service Type:</span>
+              <span class="font-semibold text-slate-800" id="receipt-service-title">Residential Flat Rent</span>
+            </div>
+          </div>
+
+          <!-- Financial Settlement Table -->
+          <div class="border border-slate-200 rounded-2xl overflow-hidden mb-6 text-xs">
+            <div class="grid grid-cols-12 bg-slate-100/70 p-3 font-bold text-slate-700 border-b border-slate-200">
+              <div class="col-span-8">Description</div>
+              <div class="col-span-4 text-right">Amount (INR)</div>
+            </div>
+            <div class="grid grid-cols-12 p-3 text-slate-800 border-b border-slate-100">
+              <div class="col-span-8" id="receipt-line-desc">Base House Rent for October 2026</div>
+              <div class="col-span-4 text-right font-semibold" id="receipt-line-amount">₹24,000.00</div>
+            </div>
+            <div class="grid grid-cols-12 p-3 text-slate-600 border-b border-slate-100">
+              <div class="col-span-8">Convenience & Digital Processing</div>
+              <div class="col-span-4 text-right">₹0.00 (Waived)</div>
+            </div>
+            <div class="grid grid-cols-12 p-3 bg-slate-50 font-bold text-slate-900 text-sm">
+              <div class="col-span-8">Total Paid in Words: <span class="font-normal text-xs text-slate-600 italic block mt-0.5" id="receipt-amount-words">Twenty Four Thousand Rupees Only</span></div>
+              <div class="col-span-4 text-right text-base text-brand-600 font-black" id="receipt-total-paid">₹24,000.00</div>
+            </div>
+          </div>
+
+          <!-- Transaction Trace -->
+          <div class="grid sm:grid-cols-2 gap-4 text-xs pt-4 border-t border-slate-200">
+            <div>
+              <p class="text-slate-500">Payment Channel: <span class="font-semibold text-slate-800" id="receipt-pay-channel">UPI / Instant Bank Transfer</span></p>
+              <p class="text-slate-500 mt-1">Bank Reference (UTR): <span class="font-mono text-slate-800 font-bold" id="receipt-utr">AXIS782910408221</span></p>
+            </div>
+            <div class="sm:text-right">
+              <div class="inline-block text-center">
+                <div class="font-display font-black text-brand-600 text-sm tracking-wider">RentPay Digital Escrow</div>
+                <div class="text-[10px] text-slate-400">Digitally Verified & Authorized</div>
+                <div class="w-24 h-0.5 bg-slate-300 mx-auto my-1"></div>
+                <div class="text-[10px] text-emerald-600 font-bold"><i class="fas fa-check-circle"></i> Authenticated Stamp</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 7: LOGIN / SIGN UP PAGE -->
+    <section id="view-login" class="view-section">
+      <div class="max-w-md mx-auto px-4 py-12">
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8">
+          
+          <!-- Logo & Header -->
+          <div class="text-center mb-6">
+            <div class="w-12 h-12 rounded-2xl bg-brand-600 text-white flex items-center justify-center mx-auto text-xl shadow-md shadow-brand-500/25 mb-3">
+              <i class="fas fa-lock"></i>
+            </div>
+            <h2 class="text-2xl font-black font-display text-slate-900" id="auth-main-title">Account Access</h2>
+            <p class="text-xs text-slate-500 mt-1">Manage rental leases, utility bills, and tax receipts</p>
+          </div>
+
+          <!-- Auth Tab Switcher -->
+          <div class="flex p-1 bg-slate-100 rounded-xl mb-6 text-xs font-bold">
+            <button onclick="switchAuthTab('login')" id="tab-auth-login" class="flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-xs transition">Sign In</button>
+            <button onclick="switchAuthTab('register')" id="tab-auth-register" class="flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-800 transition">Create Account</button>
+          </div>
+
+          <!-- Role Selector -->
+          <div class="mb-4">
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">I am a</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" onclick="setAuthRole('tenant')" id="role-tenant" class="py-2 px-3 rounded-xl border border-brand-600 bg-brand-50 text-brand-700 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                <i class="fas fa-user"></i> Tenant
+              </button>
+              <button type="button" onclick="setAuthRole('landlord')" id="role-landlord" class="py-2 px-3 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-slate-50 transition">
+                <i class="fas fa-key"></i> Landlord / Host
+              </button>
+            </div>
+          </div>
+
+          <!-- Dynamic Form -->
+          <form onsubmit="handleAuthSubmit(event)" class="space-y-4">
+            
+            <div id="auth-name-container" class="hidden">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Full Legal Name</label>
+              <input id="auth-name-input" type="text" placeholder="Alex Morgan" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+              <input id="auth-email-input" type="email" placeholder="alex.morgan@workmail.com" required value="alex.morgan@workmail.com" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-semibold text-slate-700">Password</label>
+                <a href="javascript:void(0)" onclick="showToast('Password reset link sent to registered email.', 'info')" class="text-[11px] text-brand-600 hover:underline">Forgot?</a>
+              </div>
+              <input id="auth-pass-input" type="password" required value="RentPass123" placeholder="••••••••" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+
+            <div class="flex items-center justify-between text-xs pt-1">
+              <label class="flex items-center gap-2 text-slate-600 cursor-pointer">
+                <input type="checkbox" checked class="rounded text-brand-600 focus:ring-brand-500" />
+                <span>Remember this browser</span>
+              </label>
+            </div>
+
+            <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-md shadow-brand-600/30 transition">
+              Sign In to RentPay
+            </button>
+          </form>
+
+          <!-- Social Login Divider -->
+          <div class="relative my-6 text-center">
+            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+            <span class="relative px-3 bg-white text-[11px] text-slate-400 uppercase font-semibold">Or fast login with</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button onclick="fastSocialLogin('Google')" class="py-2.5 px-3 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center gap-2 transition">
+              <i class="fab fa-google text-red-500"></i> Google
+            </button>
+            <button onclick="fastSocialLogin('Apple')" class="py-2.5 px-3 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center gap-2 transition">
+              <i class="fab fa-apple text-slate-900"></i> Apple ID
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 8: CONTACT & SUPPORT PAGE -->
+    <section id="view-contact" class="view-section">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="text-center max-w-2xl mx-auto mb-12">
+          <span class="text-xs font-bold text-brand-600 uppercase tracking-wider">Help & Concierge</span>
+          <h1 class="text-3xl font-black font-display text-slate-900 mt-1">We're Here For You</h1>
+          <p class="text-slate-600 text-sm mt-2">Have a question regarding payment settlements, HRA compliance, or bank verification? Our concierge team is ready to assist.</p>
+        </div>
+
+        <div class="grid lg:grid-cols-12 gap-10">
+          
+          <!-- Contact Form -->
+          <div class="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+            <h3 class="text-lg font-bold text-slate-900 mb-1">Send a Message</h3>
+            <p class="text-xs text-slate-500 mb-6">Average response time is under 15 minutes during business hours.</p>
+
+            <form onsubmit="handleContactSubmit(event)" class="space-y-4">
+              <div class="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <input type="text" id="contact-name" required placeholder="Alex Morgan" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+                  <input type="email" id="contact-email" required placeholder="alex@workmail.com" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Inquiry Topic</label>
+                <select class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white">
+                  <option>Payment Settlement & UTR Query</option>
+                  <option>HRA Tax Slip / Landlord PAN Verification</option>
+                  <option>Credit Card Rewards & Cashback</option>
+                  <option>Security Deposit Escrow</option>
+                  <option>Landlord Property Onboarding</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Your Message</label>
+                <textarea rows="4" required placeholder="Please describe how we can assist you..." class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+              </div>
+
+              <button type="submit" class="w-full sm:w-auto px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md shadow-brand-600/30 transition">
+                Send Inquiry
+              </button>
+            </form>
+          </div>
+
+          <!-- Contact Details & Hotline Cards -->
+          <div class="lg:col-span-5 space-y-6">
+            <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 sm:p-7 rounded-3xl shadow-lg space-y-5">
+              <h4 class="text-base font-bold">Direct Support Lines</h4>
+              
+              <div class="space-y-4 text-xs">
+                <div class="flex items-start gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-emerald-400 shrink-0">
+                    <i class="fas fa-phone-alt"></i>
+                  </div>
+                  <div>
+                    <span class="text-indigo-200">Toll-Free Customer Desk</span>
+                    <p class="font-bold text-white text-sm mt-0.5">1800-420-RENTPAY (7368)</p>
+                    <p class="text-[11px] text-slate-400">Mon - Sat (9:00 AM - 9:00 PM IST)</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-indigo-400 shrink-0">
+                    <i class="fas fa-envelope"></i>
+                  </div>
+                  <div>
+                    <span class="text-indigo-200">Email Grievance & Tax Desk</span>
+                    <p class="font-bold text-white text-sm mt-0.5">support@rentpay.in</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-amber-400 shrink-0">
+                    <i class="fas fa-map-marker-alt"></i>
+                  </div>
+                  <div>
+                    <span class="text-indigo-200">Corporate Headquarters</span>
+                    <p class="font-medium text-white text-xs mt-0.5">RentPay FinTech Tower, 5th Floor, Cyber City, Magarpatta, Pune, Maharashtra 411028</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- FAQ Mini Accordion -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+              <h4 class="text-sm font-bold text-slate-900 mb-2">Frequently Asked Questions</h4>
+              
+              <details class="group border-b border-slate-100 pb-2.5">
+                <summary class="flex justify-between items-center text-xs font-semibold text-slate-800 cursor-pointer list-none">
+                  <span>How soon does the landlord receive rent?</span>
+                  <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-[10px]"></i></span>
+                </summary>
+                <p class="text-slate-500 text-[11px] mt-2">Instant transfers via UPI and IMPS hit the landlord's verified account in under 15 minutes. Credit card payments take 1-2 hours depending on bank verification.</p>
+              </details>
+
+              <details class="group border-b border-slate-100 pb-2.5">
+                <summary class="flex justify-between items-center text-xs font-semibold text-slate-800 cursor-pointer list-none">
+                  <span>Is the HRA Receipt valid for income tax?</span>
+                  <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-[10px]"></i></span>
+                </summary>
+                <p class="text-slate-500 text-[11px] mt-2">Yes, our receipts contain landlord PAN, rental property address, and computer-verified UTR transaction numbers compliant with Section 10(13A).</p>
+              </details>
+
+              <details class="group">
+                <summary class="flex justify-between items-center text-xs font-semibold text-slate-800 cursor-pointer list-none">
+                  <span>Are there additional convenience fees?</span>
+                  <span class="transition group-open:rotate-180"><i class="fas fa-chevron-down text-[10px]"></i></span>
+                </summary>
+                <p class="text-slate-500 text-[11px] mt-2">UPI payments have a 0% convenience fee. Credit card transfers have a standard 1% fee which is often covered by reward points and card bonuses.</p>
+              </details>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Application Footer -->
+  <footer class="bg-white border-t border-slate-200 pt-12 pb-8 mt-16 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8 text-xs text-slate-600">
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center text-white text-xs">
+              <i class="fas fa-home-alt"></i>
+            </div>
+            <span class="text-base font-black font-display text-slate-900">Rent<span class="text-brand-600">Pay</span></span>
+          </div>
+          <p class="text-slate-500 leading-relaxed text-[11px]">Empowering tenants and landlords with transparent, instant payments and automated tax savings.</p>
+        </div>
+
+        <div>
+          <h5 class="font-bold text-slate-900 uppercase tracking-wider text-[11px] mb-3">Services</h5>
+          <ul class="space-y-2">
+            <li><button onclick="navigateTo('services')" class="hover:text-brand-600">House Rent Payment</button></li>
+            <li><button onclick="navigateTo('services')" class="hover:text-brand-600">Society Maintenance</button></li>
+            <li><button onclick="navigateTo('services')" class="hover:text-brand-600">Commercial Leases</button></li>
+            <li><button onclick="navigateTo('services')" class="hover:text-brand-600">Security Deposit Escrow</button></li>
+          </ul>
+        </div>
+
+        <div>
+          <h5 class="font-bold text-slate-900 uppercase tracking-wider text-[11px] mb-3">Quick Links</h5>
+          <ul class="space-y-2">
+            <li><button onclick="navigateTo('bills')" class="hover:text-brand-600">Upcoming Bills</button></li>
+            <li><button onclick="navigateTo('receipt')" class="hover:text-brand-600">Latest HRA Receipt</button></li>
+            <li><button onclick="navigateTo('cart')" class="hover:text-brand-600">View Active Cart</button></li>
+            <li><button onclick="navigateTo('contact')" class="hover:text-brand-600">Tax Helpline</button></li>
+          </ul>
+        </div>
+
+        <div>
+          <h5 class="font-bold text-slate-900 uppercase tracking-wider text-[11px] mb-3">Security & Compliance</h5>
+          <p class="text-slate-500 text-[11px] mb-2">PCI-DSS Compliant • ISO 27001 Certified • RBI Tokenized</p>
+          <div class="flex items-center gap-2 text-slate-400 text-lg">
+            <i class="fab fa-cc-visa"></i>
+            <i class="fab fa-cc-mastercard"></i>
+            <i class="fab fa-apple-pay"></i>
+            <i class="fas fa-shield-alt"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-2">
+        <p>© 2026 RentPay Technologies India Pvt. Ltd. All rights reserved.</p>
+        <p>Built for seamless rental transactions and corporate tax exemptions.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Global State
+    const AppState = {
+      currentUser: {
+        isLoggedIn: true,
+        name: "Alex Morgan",
+        email: "alex.morgan@workmail.com",
+        role: "tenant",
+        points: 3450
+      },
+      currentView: "home",
+      // Master Services Catalog
+      services: [
+        {
+          id: "srv-1",
+          category: "residential",
+          title: "Apartment / House Rent",
+          desc: "Pay monthly flat or villa rental directly to landlord bank account.",
+          baseAmount: 24000,
+          icon: "fa-building",
+          color: "brand",
+          feeBadge: "0% UPI Fee"
+        },
+        {
+          id: "srv-2",
+          category: "maintenance",
+          title: "Society Maintenance",
+          desc: "Clear monthly apartment clubhouse, security & maintenance dues.",
+          baseAmount: 3800,
+          icon: "fa-city",
+          color: "emerald",
+          feeBadge: "Instant No-Dues Slip"
+        },
+        {
+          id: "srv-3",
+          category: "residential",
+          title: "Security Deposit Transfer",
+          desc: "Transfer tenant move-in safety deposit into escrow with verified contract.",
+          baseAmount: 50000,
+          icon: "fa-shield-alt",
+          color: "amber",
+          feeBadge: "Escrow Protected"
+        },
+        {
+          id: "srv-4",
+          category: "commercial",
+          title: "Commercial Office / Shop Rent",
+          desc: "Retail shop or corporate co-working desk lease clearance with GST billing.",
+          baseAmount: 45000,
+          icon: "fa-briefcase",
+          color: "indigo",
+          feeBadge: "Input GST Credit"
+        },
+        {
+          id: "srv-5",
+          category: "maintenance",
+          title: "Electricity & Utility Bills",
+          desc: "Clear state power board dues, piped gas, and high-speed fiber internet.",
+          baseAmount: 2650,
+          icon: "fa-bolt",
+          color: "sky",
+          feeBadge: "Auto-Cleared"
+        },
+        {
+          id: "srv-6",
+          category: "residential",
+          title: "PG / Coliving Monthly Bed",
+          desc: "Pay shared coliving space or hostel fees including meal subscriptions.",
+          baseAmount: 11500,
+          icon: "fa-bed",
+          color: "purple",
+          feeBadge: "Zero Surcharge"
+        }
+      ],
+      // User's Cart
+      cart: [
+        {
+          id: "cart-item-1",
+          serviceId: "srv-1",
+          title: "October House Rent (Flat 402)",
+          category: "residential",
+          amount: 24000,
+          landlord: "R. K. Sharma",
+          period: "October 2026"
+        }
+      ],
+      // Bill Ledger items
+      bills: [
+        {
+          id: "INV-2026-101",
+          title: "Flat 402 - Skyline Towers (House Rent)",
+          provider: "R. K. Sharma",
+          dueDate: "Oct 15, 2026",
+          amount: 24000,
+          status: "pending", // 'pending' or 'paid'
+          category: "residential"
+        },
+        {
+          id: "INV-2026-102",
+          title: "Skyline Society Maintenance Q3",
+          provider: "Skyline RWA Committee",
+          dueDate: "Oct 20, 2026",
+          amount: 3800,
+          status: "pending",
+          category: "maintenance"
+        },
+        {
+          id: "INV-2026-098",
+          title: "Maharashtra State Electricity (MSEDCL)",
+          provider: "State Electricity Board",
+          dueDate: "Oct 02, 2026",
+          amount: 1950,
+          status: "paid",
+          category: "maintenance"
+        },
+        {
+          id: "INV-2026-089",
+          title: "September House Rent (Flat 402)",
+          provider: "R. K. Sharma",
+          dueDate: "Sep 05, 2026",
+          amount: 24000,
+          status: "paid",
+          category: "residential"
+        }
+      ],
+      // Active Receipt State
+      activeReceipt: {
+        receiptNo: "RP-2026-90412",
+        date: "October 09, 2026",
+        tenantName: "Alex Morgan",
+        tenantEmail: "alex.morgan@workmail.com",
+        landlordName: "R. K. Sharma",
+        landlordPan: "ABCPS1920K",
+        propertyAddress: "Flat 402, Skyline Towers, Sector 45, Pune - 411057",
+        period: "01 Oct 2026 to 31 Oct 2026",
+        serviceTitle: "Residential Flat Rent",
+        amount: 24000,
+        amountWords: "Twenty Four Thousand Rupees Only",
+        utr: "AXIS782910408221",
+        payChannel: "UPI / Instant Bank Transfer"
+      },
+      appliedPromo: "ZEROFEES",
+      promoDiscountAmount: 120
+    };
+
+    function navigateTo(viewId) {
+      // Hide all views
+      document.querySelectorAll('.view-section').forEach(view => {
+        view.classList.remove('active');
+      });
+
+      // Highlight corresponding view
+      const target = document.getElementById('view-' + viewId);
+      if (target) {
+        target.classList.add('active');
+        AppState.currentView = viewId;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // Update Nav active styling
+      document.querySelectorAll('.nav-link').forEach(link => {
+        if (link.getAttribute('data-view') === viewId) {
+          link.classList.add('text-brand-600', 'font-bold');
+        } else {
+          link.classList.remove('text-brand-600', 'font-bold');
+        }
+      });
+
+      // Execute view-specific renders
+      if (viewId === 'cart') renderCart();
+      if (viewId === 'services') renderServices();
+      if (viewId === 'bills') renderBills();
+      if (viewId === 'payment') renderPaymentSummary();
+      if (viewId === 'receipt') renderReceiptData();
+      
+      updateNavCartCount();
+      updateAuthNavButton();
+    }
+
+    function toggleMobileNav() {
+      const mobMenu = document.getElementById('mobile-menu');
+      mobMenu.classList.toggle('hidden');
+    }
+
+    // Toast Utility (Zero alert())
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast-notification');
+      const title = document.getElementById('toast-title');
+      const desc = document.getElementById('toast-desc');
+      const icon = document.getElementById('toast-icon');
+      const iconWrap = document.getElementById('toast-icon-wrapper');
+
+      desc.innerText = message;
+      if (type === 'success') {
+        title.innerText = 'Success';
+        icon.className = 'fas fa-check';
+        iconWrap.className = 'w-10 h-10 rounded-full flex items-center justify-center mr-3 bg-emerald-100 text-emerald-600';
+      } else if (type === 'info') {
+        title.innerText = 'Information';
+        icon.className = 'fas fa-info';
+        iconWrap.className = 'w-10 h-10 rounded-full flex items-center justify-center mr-3 bg-indigo-100 text-brand-600';
+      } else {
+        title.innerText = 'Notice';
+        icon.className = 'fas fa-exclamation-triangle';
+        iconWrap.className = 'w-10 h-10 rounded-full flex items-center justify-center mr-3 bg-amber-100 text-amber-600';
+      }
+
+      toast.classList.remove('translate-y-[-120%]', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(dismissToast, 4000);
+    }
+
+    function dismissToast() {
+      const toast = document.getElementById('toast-notification');
+      toast.classList.add('translate-y-[-120%]', 'opacity-0');
+      toast.classList.remove('translate-y-0', 'opacity-100');
+    }
+
+    function renderServices(filter = 'all') {
+      const container = document.getElementById('services-grid-container');
+      if (!container) return;
+
+      const filtered = filter === 'all' 
+        ? AppState.services 
+        : AppState.services.filter(s => s.category === filter);
+
+      container.innerHTML = filtered.map(service => `
+        <div class="bg-white rounded-3xl border border-slate-200/90 p-6 flex flex-col justify-between hover:shadow-xl hover:border-brand-200 transition duration-200 group">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-brand-600 flex items-center justify-center text-xl group-hover:bg-brand-600 group-hover:text-white transition">
+                <i class="fas ${service.icon}"></i>
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                ${service.feeBadge}
+              </span>
+            </div>
+            <h3 class="text-base font-bold text-slate-900 mb-1">${service.title}</h3>
+            <p class="text-xs text-slate-500 leading-relaxed mb-4">${service.desc}</p>
+          </div>
+
+          <div class="pt-4 border-t border-slate-100">
+            <div class="flex items-baseline justify-between mb-4">
+              <span class="text-xs text-slate-500">Standard Base:</span>
+              <span class="text-lg font-black font-display text-slate-900">₹${service.baseAmount.toLocaleString('en-IN')}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="addToCart('${service.id}')" class="py-2.5 px-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition flex items-center justify-center gap-1.5">
+                <i class="fas fa-cart-plus text-slate-400"></i> Add to Cart
+              </button>
+              <button onclick="instantPayService('${service.id}')" class="py-2.5 px-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition shadow-sm shadow-brand-600/30 flex items-center justify-center gap-1">
+                <span>Pay Now</span> <i class="fas fa-chevron-right text-[10px]"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterServices(category) {
+      document.querySelectorAll('#service-category-pills .cat-pill').forEach(btn => {
+        btn.className = 'cat-pill px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50';
+      });
+      event.target.className = 'cat-pill px-3.5 py-1.5 rounded-full bg-brand-600 text-white';
+      renderServices(category);
+    }
+
+    function addToCart(serviceId) {
+      const srv = AppState.services.find(s => s.id === serviceId);
+      if (!srv) return;
+
+      const newItem = {
+        id: 'cart-item-' + Date.now(),
+        serviceId: srv.id,
+        title: srv.title,
+        category: srv.category,
+        amount: srv.baseAmount,
+        landlord: "R. K. Sharma",
+        period: "Current Cycle"
+      };
+
+      AppState.cart.push(newItem);
+      updateNavCartCount();
+      showToast(`Added "${srv.title}" to your checkout cart!`);
+    }
+
+    function instantPayService(serviceId) {
+      addToCart(serviceId);
+      navigateTo('cart');
+    }
+
+    function removeCartItem(cartItemId) {
+      AppState.cart = AppState.cart.filter(item => item.id !== cartItemId);
+      renderCart();
+      updateNavCartCount();
+      showToast("Item removed from cart.", "info");
+    }
+
+    function updateNavCartCount() {
+      const badge = document.getElementById('nav-cart-badge');
+      if (badge) badge.innerText = AppState.cart.length;
+    }
+
+    function calculateCartTotals() {
+      const subtotal = AppState.cart.reduce((sum, item) => sum + item.amount, 0);
+      const convFee = subtotal > 0 ? Math.round(subtotal * 0.005) : 0; // 0.5%
+      const gst = subtotal > 0 ? Math.round(convFee * 0.18) : 0; // 18% on fee
+      
+      let discount = 0;
+      if (AppState.appliedPromo === 'ZEROFEES' && subtotal > 0) {
+        discount = convFee + gst; // Waive full fees
+      }
+
+      const total = Math.max(0, subtotal + convFee + gst - discount);
+      return { subtotal, convFee, gst, discount, total };
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items-container');
+      const { subtotal, convFee, gst, discount, total } = calculateCartTotals();
+
+      if (!container) return;
+
+      if (AppState.cart.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl border border-slate-200 p-10 text-center space-y-3">
+            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-2xl mx-auto">
+              <i class="fas fa-shopping-basket"></i>
+            </div>
+            <h3 class="text-base font-bold text-slate-800">Your Cart is Empty</h3>
+            <p class="text-xs text-slate-500 max-w-sm mx-auto">You have no pending rental dues or services queued for checkout.</p>
+            <button onclick="navigateTo('services')" class="px-5 py-2.5 bg-brand-600 text-white rounded-xl text-xs font-bold hover:bg-brand-700 transition">
+              Browse Rent Services
+            </button>
+          </div>
+        `;
+      } else {
+        container.innerHTML = AppState.cart.map(item => `
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-300 transition">
+            <div class="flex items-start gap-4">
+              <div class="w-11 h-11 rounded-xl bg-indigo-50 text-brand-600 flex items-center justify-center text-lg shrink-0 mt-0.5">
+                <i class="fas fa-file-invoice-dollar"></i>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-900">${item.title}</h4>
+                <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
+                  <span>Landlord: <strong class="text-slate-700">${item.landlord}</strong></span>
+                  <span>•</span>
+                  <span>Period: ${item.period}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between sm:justify-end gap-5 pt-2 sm:pt-0 border-t sm:border-0 border-slate-100">
+              <div class="text-right">
+                <span class="text-xs text-slate-400 block">Amount</span>
+                <span class="text-lg font-black font-display text-slate-900">₹${item.amount.toLocaleString('en-IN')}</span>
+              </div>
+              <button onclick="removeCartItem('${item.id}')" title="Remove" class="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition">
+                <i class="far fa-trash-alt text-sm"></i>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Update Financials
+      document.getElementById('cart-subtotal').innerText = '₹' + subtotal.toLocaleString('en-IN');
+      document.getElementById('cart-conv-fee').innerText = '₹' + convFee.toLocaleString('en-IN');
+      document.getElementById('cart-gst').innerText = '₹' + gst.toLocaleString('en-IN');
+      
+      const discountRow = document.getElementById('cart-discount-row');
+      const discountVal = document.getElementById('cart-discount');
+      if (discount > 0) {
+        discountRow.classList.remove('hidden');
+        discountVal.innerText = '- ₹' + discount.toLocaleString('en-IN');
+      } else {
+        discountRow.classList.add('hidden');
+      }
+
+      document.getElementById('cart-total-payable').innerText = '₹' + total.toLocaleString('en-IN');
+    }
+
+    function applyPromoCode() {
+      const codeInput = document.getElementById('cart-promo-input');
+      const promoStatus = document.getElementById('promo-status');
+      const code = codeInput.value.trim().toUpperCase();
+
+      if (code === 'ZEROFEES') {
+        AppState.appliedPromo = 'ZEROFEES';
+        promoStatus.innerHTML = '<span class="text-emerald-600 font-semibold"><i class="fas fa-check"></i> Coupon applied! Platform & convenience fee waived.</span>';
+        renderCart();
+        showToast("Coupon 'ZEROFEES' activated!");
+      } else if (code === 'WELCOME') {
+        AppState.appliedPromo = 'WELCOME';
+        promoStatus.innerHTML = '<span class="text-emerald-600 font-semibold"><i class="fas fa-check"></i> Welcome discount activated!</span>';
+        renderCart();
+        showToast("Coupon 'WELCOME' activated!");
+      } else {
+        promoStatus.innerHTML = '<span class="text-red-500 font-semibold"><i class="fas fa-times"></i> Invalid coupon code. Try ZEROFEES.</span>';
+      }
+    }
+
+    function proceedToPayment() {
+      if (AppState.cart.length === 0) {
+        showToast("Your cart is empty. Please add a rental payment item first.", "warning");
+        return;
+      }
+      navigateTo('payment');
+    }
+
+    function switchPayTab(tabKey) {
+      document.querySelectorAll('.pay-tab-btn').forEach(btn => {
+        btn.className = 'pay-tab-btn flex-1 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2 transition';
+      });
+      document.getElementById('tab-btn-' + tabKey).className = 'pay-tab-btn flex-1 py-2.5 rounded-xl bg-white text-brand-600 shadow-xs border border-slate-200 flex items-center justify-center gap-2 transition';
+
+      document.querySelectorAll('.pay-content-pane').forEach(pane => pane.classList.add('hidden'));
+      document.getElementById('pay-content-' + tabKey).classList.remove('hidden');
+    }
+
+    function renderPaymentSummary() {
+      const { total } = calculateCartTotals();
+      const amountStr = '₹' + total.toLocaleString('en-IN');
+      
+      document.getElementById('pay-button-amount').innerText = amountStr;
+      document.getElementById('pay-summary-total').innerText = amountStr;
+      document.getElementById('pay-summary-count').innerText = `${AppState.cart.length} Item(s)`;
+    }
+
+    function selectBank(btn) {
+      document.querySelectorAll('.bank-pill').forEach(b => {
+        b.className = 'bank-pill p-3 border border-slate-200 hover:border-brand-300 rounded-xl text-xs font-bold text-center text-slate-700';
+      });
+      btn.className = 'bank-pill p-3 border border-brand-500 bg-brand-50 text-brand-700 rounded-xl text-xs font-bold text-center';
+    }
+
+    function verifyUpi() {
+      const input = document.getElementById('upi-id-input');
+      if (input.value.includes('@')) {
+        showToast("UPI VPA successfully verified with bank!", "success");
+      } else {
+        showToast("Please provide a valid UPI handle (e.g. name@okhdfc)", "warning");
+      }
+    }
+
+    function simulatePaymentProcess() {
+      const btn = document.getElementById('btn-execute-pay');
+      const originalText = btn.innerHTML;
+      const { total } = calculateCartTotals();
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin text-lg"></i> <span>Authorizing with Bank...</span>`;
+
+      setTimeout(() => {
+        btn.innerHTML = `<i class="fas fa-check-circle text-lg"></i> <span>Transfer Successful! Generating Receipt...</span>`;
+        btn.classList.replace('bg-emerald-600', 'bg-indigo-600');
+
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+          btn.classList.replace('bg-indigo-600', 'bg-emerald-600');
+
+          // Generate active receipt details
+          const firstItem = AppState.cart[0] || { title: "House Rent", amount: total };
+          AppState.activeReceipt = {
+            receiptNo: "RP-" + new Date().getFullYear() + "-" + Math.floor(10000 + Math.random() * 90000),
+            date: new Date().toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }),
+            tenantName: AppState.currentUser.name,
+            tenantEmail: AppState.currentUser.email,
+            landlordName: "R. K. Sharma",
+            landlordPan: "ABCPS1920K",
+            propertyAddress: "Flat 402, Skyline Towers, Sector 45, Pune - 411057",
+            period: "October 2026",
+            serviceTitle: firstItem.title,
+            amount: total,
+            amountWords: convertNumberToWords(total) + " Rupees Only",
+            utr: "RENT" + Math.floor(100000000000 + Math.random() * 900000000000),
+            payChannel: "Instant UPI Escrow Transfer"
+          };
+
+          // Mark bills as paid in ledger
+          AppState.bills.forEach(b => {
+            if (b.status === 'pending') b.status = 'paid';
+          });
+
+          // Clear cart
+          AppState.cart = [];
+          updateNavCartCount();
+
+          showToast("Payment Cleared! Official Tax Receipt Generated.", "success");
+          navigateTo('receipt');
+        }, 1200);
+
+      }, 1600);
+    }
+
+    function convertNumberToWords(amount) {
+      if (!amount) return "Zero";
+      return amount.toLocaleString('en-IN');
+    }
+
+    function renderBills(filter = 'all') {
+      const tbody = document.getElementById('bills-table-body');
+      if (!tbody) return;
+
+      const filtered = filter === 'all' 
+        ? AppState.bills 
+        : AppState.bills.filter(b => b.status === filter);
+
+      document.getElementById('bill-total-count').innerText = filtered.length;
+
+      tbody.innerHTML = filtered.map(bill => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-4 px-6 font-mono font-semibold text-slate-700 text-xs">${bill.id}</td>
+          <td class="py-4 px-6">
+            <div class="font-bold text-slate-900">${bill.title}</div>
+            <span class="text-[11px] text-slate-400 capitalize">${bill.category}</span>
+          </td>
+          <td class="py-4 px-6 text-slate-600 text-xs">${bill.provider}</td>
+          <td class="py-4 px-6 text-slate-600 text-xs">${bill.dueDate}</td>
+          <td class="py-4 px-6 font-bold text-slate-900">₹${bill.amount.toLocaleString('en-IN')}</td>
+          <td class="py-4 px-6">
+            ${bill.status === 'paid' 
+              ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><i class="fas fa-check-circle text-[10px]"></i> Paid</span>'
+              : '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700"><i class="fas fa-clock text-[10px]"></i> Due in 3 days</span>'
+            }
+          </td>
+          <td class="py-4 px-6 text-right">
+            ${bill.status === 'paid'
+              ? `<button onclick="navigateTo('receipt')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition">
+                  <i class="fas fa-receipt mr-1"></i> Receipt
+                 </button>`
+              : `<button onclick="payDirectBill('${bill.id}')" class="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition shadow-xs">
+                  Pay Bill
+                 </button>`
+            }
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function filterBills(status) {
+      document.querySelectorAll('.bill-filter-btn').forEach(btn => {
+        btn.className = 'bill-filter-btn px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100';
+      });
+      event.target.className = 'bill-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700';
+      renderBills(status);
+    }
+
+    function payDirectBill(billId) {
+      const bill = AppState.bills.find(b => b.id === billId);
+      if (!bill) return;
+
+      AppState.cart = [{
+        id: 'cart-' + bill.id,
+        serviceId: 'srv-direct',
+        title: bill.title,
+        category: bill.category,
+        amount: bill.amount,
+        landlord: bill.provider,
+        period: "Due Cycle"
+      }];
+
+      updateNavCartCount();
+      navigateTo('cart');
+    }
+
+    function renderReceiptData() {
+      const r = AppState.activeReceipt;
+      document.getElementById('receipt-no').innerText = r.receiptNo;
+      document.getElementById('receipt-date').innerText = r.date;
+      document.getElementById('receipt-tenant-name').innerText = r.tenantName;
+      document.getElementById('receipt-tenant-email').innerText = r.tenantEmail;
+      document.getElementById('receipt-landlord-name').innerText = r.landlordName;
+      document.getElementById('receipt-landlord-pan').innerText = r.landlordPan;
+      document.getElementById('receipt-address').innerText = r.propertyAddress;
+      document.getElementById('receipt-period').innerText = r.period;
+      document.getElementById('receipt-service-title').innerText = r.serviceTitle;
+      document.getElementById('receipt-line-desc').innerText = `Rental payment settlement for ${r.period}`;
+      document.getElementById('receipt-line-amount').innerText = '₹' + r.amount.toLocaleString('en-IN') + '.00';
+      document.getElementById('receipt-total-paid').innerText = '₹' + r.amount.toLocaleString('en-IN') + '.00';
+      document.getElementById('receipt-amount-words').innerText = r.amountWords;
+      document.getElementById('receipt-pay-channel').innerText = r.payChannel;
+      document.getElementById('receipt-utr').innerText = r.utr;
+    }
+
+    let currentAuthMode = 'login';
+    let currentAuthRole = 'tenant';
+
+    function switchAuthTab(mode) {
+      currentAuthMode = mode;
+      const loginTab = document.getElementById('tab-auth-login');
+      const regTab = document.getElementById('tab-auth-register');
+      const nameContainer = document.getElementById('auth-name-container');
+      const submitBtn = document.getElementById('auth-submit-btn');
+      const title = document.getElementById('auth-main-title');
+
+      if (mode === 'login') {
+        loginTab.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-xs transition';
+        regTab.className = 'flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-800 transition';
+        nameContainer.classList.add('hidden');
+        submitBtn.innerText = 'Sign In to RentPay';
+        title.innerText = 'Account Access';
+      } else {
+        regTab.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-xs transition';
+        loginTab.className = 'flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-800 transition';
+        nameContainer.classList.remove('hidden');
+        submitBtn.innerText = 'Create RentPay Account';
+        title.innerText = 'Join RentPay';
+      }
+    }
+
+    function setAuthRole(role) {
+      currentAuthRole = role;
+      const tenantBtn = document.getElementById('role-tenant');
+      const landlordBtn = document.getElementById('role-landlord');
+
+      if (role === 'tenant') {
+        tenantBtn.className = 'py-2 px-3 rounded-xl border border-brand-600 bg-brand-50 text-brand-700 text-xs font-bold flex items-center justify-center gap-1.5 transition';
+        landlordBtn.className = 'py-2 px-3 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-slate-50 transition';
+      } else {
+        landlordBtn.className = 'py-2 px-3 rounded-xl border border-brand-600 bg-brand-50 text-brand-700 text-xs font-bold flex items-center justify-center gap-1.5 transition';
+        tenantBtn.className = 'py-2 px-3 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-slate-50 transition';
+      }
+    }
+
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('auth-email-input').value;
+      const name = currentAuthMode === 'register' 
+        ? document.getElementById('auth-name-input').value || 'Registered User'
+        : 'Alex Morgan';
+
+      AppState.currentUser = {
+        isLoggedIn: true,
+        name: name,
+        email: email,
+        role: currentAuthRole,
+        points: 3450
+      };
+
+      updateAuthNavButton();
+      showToast(`Welcome back, ${name}! Signed in successfully.`, 'success');
+      navigateTo('home');
+    }
+
+    function fastSocialLogin(provider) {
+      AppState.currentUser = {
+        isLoggedIn: true,
+        name: "Alex Morgan",
+        email: "alex.morgan@workmail.com",
+        role: "tenant",
+        points: 3450
+      };
+      updateAuthNavButton();
+      showToast(`Connected via ${provider}. Logged in!`, "success");
+      navigateTo('home');
+    }
+
+    function logoutUser() {
+      AppState.currentUser.isLoggedIn = false;
+      updateAuthNavButton();
+      showToast("You have been signed out.", "info");
+      navigateTo('home');
+    }
+
+    function updateAuthNavButton() {
+      const container = document.getElementById('nav-auth-container');
+      const dashUser = document.getElementById('dash-user-name');
+
+      if (dashUser) {
+        dashUser.innerText = AppState.currentUser.isLoggedIn 
+          ? `Welcome back, ${AppState.currentUser.name}!` 
+          : `Welcome to RentPay`;
+      }
+
+      if (!container) return;
+
+      if (AppState.currentUser.isLoggedIn) {
+        container.innerHTML = `
+          <div class="flex items-center gap-2">
+            <button onclick="navigateTo('bills')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition">
+              <i class="fas fa-user-circle text-brand-600 text-sm"></i>
+              <span class="hidden sm:inline">${AppState.currentUser.name.split(' ')[0]}</span>
+            </button>
+            <button onclick="logoutUser()" title="Logout" class="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 transition">
+              <i class="fas fa-sign-out-alt text-xs"></i>
+            </button>
+          </div>
+        `;
+      } else {
+        container.innerHTML = `
+          <button onclick="navigateTo('login')" class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-brand-600 text-white hover:bg-brand-700 shadow-sm shadow-brand-600/30 transition flex items-center gap-2">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>Sign In</span>
+          </button>
+        `;
+      }
+    }
+
+    function handleContactSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('contact-name').value;
+      showToast(`Thank you ${name}! Your inquiry has been routed to our Priority Support team.`, 'success');
+      e.target.reset();
+    }
+
+    function setQuickService(serviceTitle) {
+      showToast(`Selected service: ${serviceTitle}`, 'info');
+    }
+
+    function quickPayFromHero() {
+      const amountInput = document.getElementById('hero-quick-amount');
+      const amount = parseFloat(amountInput.value) || 24000;
+
+      AppState.cart = [{
+        id: 'cart-quick-' + Date.now(),
+        serviceId: 'srv-1',
+        title: 'Monthly House Rent',
+        category: 'residential',
+        amount: amount,
+        landlord: 'R. K. Sharma',
+        period: 'October 2026'
+      }];
+
+      updateNavCartCount();
+      navigateTo('cart');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderServices();
+      renderCart();
+      renderBills();
+      updateAuthNavButton();
+      updateNavCartCount();
+    });
+  </script>
+</body>
+</html>
